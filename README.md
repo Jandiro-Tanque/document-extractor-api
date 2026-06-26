@@ -59,3 +59,55 @@ Como o ambiente corre em Windows, o Celery deve ser executado utilizando o pool 
 
 Bash
 celery -A validador_de_document worker --loglevel=info -P solo
+
+🛣️ Endpoints da API
+1. Upload de Documento / Criar Tarefa
+URL: /api/v1/documents/
+
+Método: POST
+
+Payload: multipart/form-data contendo o ficheiro no campo file.
+
+Resposta Esperada (HTTP 202 Accepted):
+
+JSON
+{
+  "message": "Upload realizado com sucesso. Processamento iniciado.",
+  "document": {
+    "id": 11,
+    "file": "[http://127.0.0.1:8000/media/documents/exemplo.png](http://127.0.0.1:8000/media/documents/exemplo.png)",
+    "status": "PENDING",
+    "uploaded_at": "2026-06-26T18:08:31.327488Z"
+  }
+}
+2. Verificar Status e Resultado do OCR
+URL: /api/v1/documents/<id>/
+
+Método: GET
+
+Resposta (Processado com Sucesso - HTTP 200 OK):
+
+JSON
+{
+  "id": 11,
+  "file": "[http://127.0.0.1:8000/media/documents/exemplo.png](http://127.0.0.1:8000/media/documents/exemplo.png)",
+  "status": "COMPLETED",
+  "extracted_data": {
+    "document_id": 11,
+    "filename": "exemplo.png",
+    "content": "Texto extraído pelo Tesseract OCR..."
+  },
+  "json_file": "[http://127.0.0.1:8000/media/extracted_jsons/doc_11.json](http://127.0.0.1:8000/media/extracted_jsons/doc_11.json)",
+  "error_message": null,
+  "uploaded_at": "2026-06-26T18:08:31.327488Z"
+}
+🧠 Fluxo de Funcionamento
+O cliente faz um POST com um ficheiro (PDF ou Imagem).
+
+O Django guarda o registo com o status PENDING e dispara uma tarefa para o broker Upstash Redis.
+
+O Django responde imediatamente ao cliente com o HTTP 202, mantendo a aplicação fluida.
+
+O Celery Worker deteta a nova tarefa no Redis, altera o status para PROCESSING e executa o OCR.
+
+Após a leitura, os dados são convertidos para JSON, salvos no disco e o status é atualizado para COMPLETED.
